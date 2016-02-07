@@ -66,16 +66,42 @@ scale computing from the split of big data applications from simulation-based
 computing with both the necessary and forced integration of these large,
 expensive platforms for multi-use.
 
-\section{Object-Based Key-Value Stores}\label{sec:intro}
+\section{Object-Based Stores}\label{sec:intro}
 placeholder cite~\cite{ilyas2004hsn}.
 
 Here we want to talk about how object-based key-value stores are used for big
 data applications summarizing the specific features that identify this market
 segment.
 
-\subsection{Big-Data Optimized Object/Key-Value Stores}
+\subsection{Big-Data/General Computing Optimized Object/Key-Value Stores}
 
-Memchached is the granddaddy. Talk about others and how they differ.
+Wisconsin [Chou, et. al] is the granddaddy 1985. Talk about others and how they differ.
+
+%@article {1985:chou:wisconsin-storage,
+%author = {Chou, H-T. and Dewitt, David J. and Katz, Randy H. and Klug, Anthony C.},
+%title = {Design and implementation of the wisconsin storage system},
+%journal = {Software: Practice and Experience},
+%volume = {15},
+%number = {10},
+%publisher = {John Wiley & Sons, Ltd.},
+%issn = {1097-024X},
+%url = {http://dx.doi.org/10.1002/spe.4380151003},
+%doi = {10.1002/spe.4380151003},
+%pages = {943--962},
+%keywords = {Database systems, File system design, Storage structures, Access methods},
+%year = {1985},
+%abstract = {We describe the implementation of a flexible data storage system for the UNIX environment that has been designed as an experimental vehicle for building database management systems. The storage component forms a foundation upon which a variety of database systems can be constructed including support for unconventional types of data. We describe the system architecture, the design decisions incorporated within its implementation, our experiences in developing this large piece of software, and the applications that have been built on top of it.},
+%}
+
+memchached [2003] from LiveJournal.
+
+\subsection{HPC Oriented Object Stores}
+
+Parallel file systems inherently have an object-like layer beneath the surface.
+The requirement to spread a single file across multiple devices for capacity
+reasons alone prompts this approach. The actual implementation may vary, such
+as using individual files within a local file system, each representing part
+of parallel file. Popular examples include Lustre~\cite{lustre}, ...,
 
 \section{Next Generation HPC Storage Systems}\label{sec:intro}
 
@@ -105,7 +131,10 @@ SSIO project from ORNL/Sandia
 This is our overall view on things
 
 \section*{Acknowledgements}
-Sandia is a multi-purpose lab.....
+Sandia National Laboratories is a multi-program laboratory managed and operated
+by Sandia Corporation, a wholly owned subsidiary of Lockheed Martin
+Corporation, for the U.S. Department of Energy's National Nuclear Security
+Administration under contract DE-AC04-94AL85000.
 
 %\begin{figure}[htb]
 %\begin{figure}[b!]
