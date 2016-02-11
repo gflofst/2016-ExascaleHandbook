@@ -21,13 +21,20 @@ blending.
 \section{Introduction}\label{sec:intro}
 HPC infrastructures have grown around the requirement to handle large,
 decomposed data structures for parallel computation. Single data objects may be
-as large as 100s TB spread across the entire machine. Paralell storage systems
-have adequately grown and addressed performance and storage requirements while
-maintaining backwards compatibility with the standard POSIX interface.  Big
-data application, on the other hand, focus on searching through immense volumes
-of tiny items looking for patterns or correlations that may lead to insights.
-Some science applications, such as genomics, have a workload pattern similar to
-these big data applications.
+100s of TB spread across the entire machine. Paralell storage systems have
+grown trying to address performance and storage requirements while maintaining
+backwards compatibility with the standard POSIX interface.  Unfortunately, this
+is proving increasingly difficult. Big data application, on the other hand,
+focus on searching through immense volumes of tiny items looking for patterns
+or correlations that may lead to insights.  Some science applications, such as
+genomics, have a workload pattern similar to these big data applications. For
+these applications, parallel file systems are not well suited because of the
+broad, relatively continuous read demand of independent items does not benefit
+from the overheads of parallel file systems. Instead, distributing storage
+across the compute infrastructure makes more sense. With pressures to
+effectively leverage a single platform for these disparate workloads and the
+shifting storage market, new considerations for how to design storage resources
+for extreme scale compute systems must be made.
 
 Traditionally, the HPC market has focused on supporting coherent and consistent
 output methods from parallel sources to parallel targets. This requirement is
@@ -43,11 +50,19 @@ reading in large data quantities for processing at scale. The output from this
 process can be handled at much smaller scale later and is orders of magnitude
 smaller. Given the small item focus, the overhead inherent in coherent and
 consistent storage for write intensive workloads is both unnecessary and a
-heavy cost. Instead, distributed object-based storage technology has been
-embraced with independent, uncoordinated dat access. The profit potential for
-this market has caused an explosion in specialized products aimed at
-accelerating this style processing.  The optimizations targeting this market,
-such as Kinect~\cite{segate:kinect}, offer a native object interface for the
+heavy cost. Instead, systems like HDFS~\cite{hdfs} dominate. These work by
+storing files that will be read for processing throughout the compute area
+including assumption that failures are common prompting replication.
+
+The output from intitial stream or file processing for the big data workloads
+use distributed object-based storage technology. It offers independent,
+uncoordinated data access with a simplistic key search space for subsequent
+analysis. The profit potential for this market has caused an explosion in
+specialized products aimed at accelerating this processing style.  For small
+enough data sets, in memory object stores like memcached and Radius dominate.
+For larger data sets, approaches like Google's Big Table are accomplishing the
+same function. There are also hardware products targeting this market segment,
+such as Kinect~\cite{segate:kinect}, offering a native object interface for the
 devices connected directly to a network.
 
 Adding complexity to this storage environment is the relentless performance
@@ -60,11 +75,60 @@ infrequently workloads is very attractive for many communities. For example,
 storing images created sequentially for later read-intensive processing can
 yield a better cost/performance balance.
 
-We will investigate how the HPC environment can and must adapt to this new
-storage envionment. We will also consider the planned reintegration of large
-scale computing from the split of big data applications from simulation-based
-computing with both the necessary and forced integration of these large,
-expensive platforms for multi-use.
+This chapter investigates these new technologies and how they affect extreme
+scale computing. We evaluate how the HPC environment can and must adapt to this
+new storage envionment to address future computing needs and to take advantage
+of the different kinds of technology being developed. We will also consider the
+planned reintegration of large scale computing from the split of big data
+applications from simulation-based computing with both the necessary and forced
+integration of these large, expensive platforms for multi-use.
+
+\section{Existing File Systems}
+
+HDFS developed to support the Hadoop implementation of the MapReduce system. It
+offers a distributed, replicated file store optimized to support the MapReduce
+processing configuration. Each file is small enough to fit on a single device.
+Ceph also addresses this distributed computing infrastructure, but with a
+different emphasis. It seeks to offer scale out performance for objects across
+a storage infrastructure. With the rise of cloud systems using object-based
+storage, such as Amazon's S3, the interaction style offered by Ceph has been
+adopted for similar workloads. Ceph has features to handle storage devices
+failing and new ones joining a running system without interruption. Ceph offers
+a complete file system including metadata management support as well as an
+object system for users. GlusterFS focuses on providing a network attached
+storage interface to storage distributed throughout a cluster. Rather than
+providing metadata services, GlusterFS relies on the underlying storage file
+system for most basic capabilties, such as security.
+
+Parallel file systems are optimized to support large files that must be spread
+across mutliple devices. For example, a 100 TB file cannot fit on any current
+storage device and cannot be stored with any performance. Parallel file systems
+solve this problem by using multiple devices spread across multiple servers
+together as if they are a single device. Data is striped across devices, all of
+which can be written to or read from simultaneously. This parallel access
+offers aggregate performance enabling manipulating very large files with
+reasonable performance. Because of these characteristics, parallel file systems
+are deployed on most simulation intensive large scale compute systems to handle
+the large single object output characteristic of these applications.  Lustre is
+arguably the most popular parallel file system appearing on a majority of the
+Top500 machines. IBM's GPFS is increasing in popularity as optimizations
+focusing on addressing big data workloads are incorporated. PVFS offers a
+rethinking of some of Lustre's earlier limitations to give better scalability
+characteristics.
+
+~\\
+\noindent\textbf{Discussion}\\
+The different optimizations distributed vs. parallel file systems offer are at
+the cost of supporting the other kind of workload. As was mentioned above,
+parallel file systems aim to support very large objects and aggregate
+simultaneous writing and reading for a single object across the array. For
+workloads consisting of entirely small objects, this functionality and overhead
+is a cost. Similarly, the inability of the distributed file systems to handle
+arbitrarily large objects and massive parallel simultaneous access to a single
+object make them unsuitable for simulation workloads.
+
+For both workloads, a more flexible object-based interface are being
+considered. This is discussed more below.
 
 \section{Object-Based Stores}\label{sec:intro}
 placeholder cite~\cite{ilyas2004hsn}.
