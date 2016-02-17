@@ -42,7 +42,7 @@ driven from validating that the output of a single item is complete and
 correct. Largely, the workload is write-intensive during the expensive, at
 scale computation process with a read-intensive phase lasting months on cheaper
 machines or at small scale with low priority. File systems like the dominant
-Lustre~\cite{lustre} and GPFS~\cite{gpfs} systems have been carefully optimized
+Lustre~\cite{braam:2002:lustre-arch} and GPFS~\cite{schmuck:2002:gpfs} systems have been carefully optimized
 to address these workloads.
 
 The big data market has opposite priorities. The big computation phase requires
@@ -50,9 +50,10 @@ reading in large data quantities for processing at scale. The output from this
 process can be handled at much smaller scale later and is orders of magnitude
 smaller. Given the small item focus, the overhead inherent in coherent and
 consistent storage for write intensive workloads is both unnecessary and a
-heavy cost. Instead, systems like HDFS~\cite{hdfs} dominate. These work by
-storing files that will be read for processing throughout the compute area
-including assumption that failures are common prompting replication.
+heavy cost. Instead, systems like HDFS~\cite{shvachko:2010:hdfs} dominate.
+These work by storing files that will be read for processing throughout the
+compute area including assumption that failures are common prompting
+replication.
 
 The output from intitial stream or file processing for the big data workloads
 use distributed object-based storage technology. It offers independent,
@@ -62,18 +63,18 @@ specialized products aimed at accelerating this processing style.  For small
 enough data sets, in memory object stores like memcached and Radius dominate.
 For larger data sets, approaches like Google's Big Table are accomplishing the
 same function. There are also hardware products targeting this market segment,
-such as Kinect~\cite{segate:kinect}, offering a native object interface for the
-devices connected directly to a network.
+such as Kinetic~\cite{segate-kinetic}, offering a native object interface for
+the devices connected directly to a network.
 
 Adding complexity to this storage environment is the relentless performance
 improvements and cost reductions for solid state storage, like NAND-based flash
 memory. These devices have already rendered 15,000 RPM disk drives obsolete.
 The 10,000 RPM disk drives will not survive for more than a few more years.
-New disk technology like shingled drives~\cite{shingled-media} offer a path for
-disks to survive longer. The enormous capacities for read intensive, write
-infrequently workloads is very attractive for many communities. For example,
-storing images created sequentially for later read-intensive processing can
-yield a better cost/performance balance.
+New disk technology like shingled drives~\cite{wood:2009:shingled-media} offer
+a path for disks to survive longer. The enormous capacities for read intensive,
+write infrequently workloads is very attractive for many communities. For
+example, storing images created sequentially for later read-intensive
+processing can yield a better cost/performance balance.
 
 This chapter investigates these new technologies and how they affect extreme
 scale computing. We evaluate how the HPC environment can and must adapt to this
@@ -131,33 +132,41 @@ For both workloads, a more flexible object-based interface are being
 considered. This is discussed more below.
 
 \section{Object-Based Stores}\label{sec:intro}
-placeholder cite~\cite{ilyas2004hsn}.
+
+The earliest object store is probably the Wisconsin Storage
+System~\cite{1985:chou:wisconsin-storage} published in 1985. It offered a
+general storage infrastructure for both databases and file systems. Many
+current systems were built using a similar infrastructure, such as
+Lustre~\cite{braam:2002:lustre-arch}, GPFS~\cite{schmuck:2002:gpfs}, and
+Panasas~\cite{welch:2008:panasas}. The general idea is to offer s a
+standardized way to address an arbitrary storage space with a key-based access.
+These object storage systems assume that some sort of structure is imposed on
+top to track what objects correspond to which user items.
+
+While object storage may have been used behind the scenes for years, raw
+object storage exposed to the end-user programmer did not into vogue until the
+big data era arrived. System developers for big data processing realized that
+the overhead imposed by the object management forced serialized or at least
+coordinated access. By shifting the mapping load to the end-user programmer
+level and using the object storage layer directly, greater perceived
+performance can be achieved. In many cases, by stripping down the requirements
+to the absolute minimum required semantics for a particular application,
+actual performance gains are achieved. The explosion of specialized storage
+systems like HDFS and GFS represent this model. Key for this model achieving
+performance is the ability of each process to work independently without any
+required consistency or coherence with neighbor processes potentially working
+on part of the same data set. The dominant object stores are systems like
+Memcached~\cite{fitzpatrick:2004:memcached}. This stands in stark contrast to
+how supercomputing applications generally operate.
+
+The supercomputing domain maintained the consistency requirements due to the
+bulk synchronous parallel processing. Instead, parallel, that is coordinated,
+file systems were embraced. The challenge today is that parallel file systems
+are having difficulty effectively scaling to handle the IO demands.
 
 Here we want to talk about how object-based key-value stores are used for big
 data applications summarizing the specific features that identify this market
 segment.
-
-\subsection{Big-Data/General Computing Optimized Object/Key-Value Stores}
-
-Wisconsin [Chou, et. al] is the granddaddy 1985. Talk about others and how they differ.
-
-%@article {1985:chou:wisconsin-storage,
-%author = {Chou, H-T. and Dewitt, David J. and Katz, Randy H. and Klug, Anthony C.},
-%title = {Design and implementation of the wisconsin storage system},
-%journal = {Software: Practice and Experience},
-%volume = {15},
-%number = {10},
-%publisher = {John Wiley & Sons, Ltd.},
-%issn = {1097-024X},
-%url = {http://dx.doi.org/10.1002/spe.4380151003},
-%doi = {10.1002/spe.4380151003},
-%pages = {943--962},
-%keywords = {Database systems, File system design, Storage structures, Access methods},
-%year = {1985},
-%abstract = {We describe the implementation of a flexible data storage system for the UNIX environment that has been designed as an experimental vehicle for building database management systems. The storage component forms a foundation upon which a variety of database systems can be constructed including support for unconventional types of data. We describe the system architecture, the design decisions incorporated within its implementation, our experiences in developing this large piece of software, and the applications that have been built on top of it.},
-%}
-
-memchached [2003] from LiveJournal.
 
 \subsection{HPC Oriented Object Stores}
 
@@ -165,7 +174,17 @@ Parallel file systems inherently have an object-like layer beneath the surface.
 The requirement to spread a single file across multiple devices for capacity
 reasons alone prompts this approach. The actual implementation may vary, such
 as using individual files within a local file system, each representing part
-of parallel file. Popular examples include Lustre~\cite{lustre}, ...,
+of parallel file. Popular examples include
+Lustre~\cite{braam:2002:lustre-arch} and GPFS~\cite{schmuck:2002:gpfs}.
+
+In some cases, directly using a key-value store for HPC applications is being
+considered~\cite{yin:2014:key-value-parallel}. The next generation Lustre
+project is also considering a key-value infrastructure~\cite{barton:2013:lustre} to address performance challenges.
+
+The real challenge with key-value stores for HPC applications is the metadata
+management. All of these projects have taken a similar step to the big data
+application is that the applications are required to manage the object list to
+determine what data is stored in which object.
 
 \section{Next Generation HPC Storage Systems}\label{sec:intro}
 
@@ -212,11 +231,11 @@ Administration under contract DE-AC04-94AL85000.
 %Figure caption goes here.}
 %\end{figure}
 
-\section{Glossary}
-\begin{Glossary}
-\item[Adaptable] An adaptable process is designed to maintain effectiveness and
-efficiency as requirements change. The process is deemed adaptable when there
-is agreement among suppliers, owners, and customers that the process will meet
-requirements throughout the strategic period.
-\end{Glossary}
+%\section{Glossary}
+%\begin{Glossary}
+%\item[Adaptable] An adaptable process is designed to maintain effectiveness and
+%efficiency as requirements change. The process is deemed adaptable when there
+%is agreement among suppliers, owners, and customers that the process will meet
+%requirements throughout the strategic period.
+%\end{Glossary}
 
