@@ -21,42 +21,46 @@ blending.
 \section{Introduction}\label{sec:intro}
 HPC infrastructures have grown around the requirement to handle large,
 decomposed data structures for parallel computation. Single data objects may be
-100s of TB spread across the entire machine. Paralell storage systems have
-grown trying to address performance and storage requirements while maintaining
-backwards compatibility with the standard POSIX interface.  Unfortunately, this
-is proving increasingly difficult. Big data application, on the other hand,
-focus on searching through immense volumes of tiny items looking for patterns
-or correlations that may lead to insights.  Some science applications, such as
-genomics, have a workload pattern similar to these big data applications. For
-these applications, parallel file systems are not well suited because of the
-broad, relatively continuous read demand of independent items does not benefit
-from the overheads of parallel file systems. Instead, distributing storage
-across the compute infrastructure makes more sense. With pressures to
-effectively leverage a single platform for these disparate workloads and the
-shifting storage market, new considerations for how to design storage resources
-for extreme scale compute systems must be made.
+hundreds of terabytes spread across an entire machine. Parallel storage systems
+have grown trying to address performance and storage requirements while
+maintaining backwards compatibility with the standard POSIX interface and
+semantics.  Unfortunately, this is proving increasingly difficult, as the POSIX
+specification was not designed to efficiently support parallel
+storage~\cite{kimpe:2014:storagemodels}.
+
+Big data and internet-scale applications, on the other hand, focus on searching
+through immense volumes of small, loosely associated items looking for patterns
+or correlations that may lead to insights. Some science applications, such as
+genomics, have a workload pattern similar to these big data
+applications. Parallel file systems are not well suited to these workloads
+because the broad, relatively continuous read demand of independent items does
+not benefit from the coordination overheads of parallel file systems. Instead,
+distributing loosely coordinated storage across the compute infrastructure makes
+more sense. With pressures to effectively leverage a single platform for these
+disparate workloads and the shifting storage market, new considerations for how
+to design storage resources for extreme scale compute systems must be made.
 
 Traditionally, the HPC market has focused on supporting coherent and consistent
 output methods from parallel sources to parallel targets. This requirement is
 driven from validating that the output of a single item is complete and
-correct. Largely, the workload is write-intensive during the expensive, at
-scale computation process with a read-intensive phase lasting months on cheaper
+correct. Largely, the workload is write-intensive during the expensive, at scale
+computation process with a read-intensive phase lasting months on cheaper
 machines or at small scale with low priority. File systems like the dominant
 Lustre~\cite{braam:2002:lustre-arch} and GPFS~\cite{schmuck:2002:gpfs} systems
 have been carefully optimized to address these workloads.
 
 The big data market has opposite priorities. The big computation phase requires
-reading in large data quantities for processing at scale. The output from this
+reading large quantities of data for processing at scale. The output from this
 process can be handled at much smaller scale later and is orders of magnitude
-smaller. Given the small item focus, the overhead inherent in coherent and
-consistent storage for write intensive workloads is both unnecessary and a
-heavy cost. Instead, systems like HDFS~\cite{shvachko:2010:hdfs} dominate.
-These work by storing files that will be read for processing throughout the
-compute area including assumption that failures are common prompting
+smaller. Given the read-dominant focus, the overhead inherent in coherent and
+consistent storage for write intensive workloads is both unnecessary and a heavy
+cost. Instead, systems like HDFS~\cite{shvachko:2010:hdfs} dominate.  These work
+by storing files that will be read for processing throughout the compute area,
+including the assumption that storage failures are common, prompting
 replication.
 
-The output from intitial stream or file processing for the big data workloads
-use distributed object-based storage technology. It offers independent,
+The output from initial stream or file processing for the big data workloads use
+distributed object-based storage technology. It offers independent,
 uncoordinated data access with a simplistic key search space for subsequent
 analysis. The profit potential for this market has caused an explosion in
 specialized products aimed at accelerating this processing style.  For small
@@ -78,7 +82,7 @@ processing can yield a better cost/performance balance.
 
 This chapter investigates these new technologies and how they affect extreme
 scale computing. We evaluate how the HPC environment can and must adapt to this
-new storage envionment to address future computing needs and to take advantage
+new storage environment to address future computing needs and to take advantage
 of the different kinds of technology being developed. We will also consider the
 planned reintegration of large scale computing from the split of big data
 applications from simulation-based computing with both the necessary and forced
@@ -88,21 +92,22 @@ integration of these large, expensive platforms for multi-use.
 
 HDFS developed to support the Hadoop implementation of the MapReduce system. It
 offers a distributed, replicated file store optimized to support the MapReduce
-processing configuration. Each file is small enough to fit on a single device.
-Ceph also addresses this distributed computing infrastructure, but with a
-different emphasis. It seeks to offer scale out performance for objects across
-a storage infrastructure. With the rise of cloud systems using object-based
-storage, such as Amazon's S3, the interaction style offered by Ceph has been
-adopted for similar workloads. Ceph has features to handle storage devices
-failing and new ones joining a running system without interruption. Ceph offers
-a complete file system including metadata management support as well as an
-object system for users. GlusterFS focuses on providing a network attached
-storage interface to storage distributed throughout a cluster. Rather than
-providing metadata services, GlusterFS relies on the underlying storage file
-system for most basic capabilties, such as security.
+processing configuration. Ceph also addresses this distributed computing
+infrastructure, but with a different emphasis. It seeks to offer scale out
+performance for objects across a storage infrastructure. However, Ceph does not
+offer the ability to scale up: Each object must fit within a single storage
+device. With the rise of cloud systems using object-based storage, such as
+Amazon's S3, the interaction style offered by Ceph has been adopted for similar
+workloads. Ceph has features to handle storage devices failing and new ones
+joining a running system without interruption. Ceph offers a complete file
+system including metadata management support as well as an object system for
+users. GlusterFS focuses on providing a network attached storage interface to
+storage distributed throughout a cluster. Rather than providing metadata
+services, GlusterFS relies on the underlying storage file system for most basic
+capabilities, such as security.
 
 Parallel file systems are optimized to support large files that must be spread
-across mutliple devices. For example, a 100 TB file cannot fit on any current
+across multiple devices. For example, a 100~TB file cannot fit on any current
 storage device and cannot be stored with any performance. Parallel file systems
 solve this problem by using multiple devices spread across multiple servers
 together as if they are a single device. Data is striped across devices, all of
