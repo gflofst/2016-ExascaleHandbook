@@ -164,3 +164,168 @@ abstract = {We describe the implementation of a flexible data storage system for
   pages       = "335--345",
   chapter     = 30,
 }
+
+@article{yu:2008:parcoll,
+author = {Weikuan Yu and Jeffrey Vetter},
+title = {{ParColl}: Partitioned Collective {I/O} on the Cray {XT}},
+journal ={Parallel Processing, International Conference on},
+volume = {0},
+year = {2008},
+issn = {0190-3918},
+pages = {562-569},
+doi = {http://doi.ieeecomputersociety.org/10.1109/ICPP.2008.76},
+publisher = {IEEE Computer Society},
+address = {Los Alamitos, CA, USA},
+}
+
+@INPROCEEDINGS{lofstead:2011:six-degrees,
+    author = {Jay Lofstead and Milo Polte and Garth Gibson and Scott Klasky and Karsten Schwan and Ron Oldfield and Matthew Wolf and Qing Liu},
+    title = {Six Degrees of Scientific Data: Reading Patterns for Extreme Scale Science IO},
+    abstract = {Petascale science simulations generate 10s of TBs of application data per day, much of it devoted to their checkpoint/restart fault tolerance mechanisms. Previous work demonstrated the importance of carefully managing such output to prevent application slowdown due to IO blocking, resource contention negatively impacting simulation performance and to fully exploit the IO bandwidth available to the petascale machine. This paper takes a further step in understanding and managing extreme-scale IO. Specifically, its evaluations seek to understand how to efficiently read data for subsequent data analysis, visualization, checkpoint restart after a failure, and other read-intensive operations. In their entirety, these actions support the â€˜end-to-endâ€™ needs of scientists enabling the scientific processes being undertaken. Contributions include the following. First, working with application scientists, we define â€˜readâ€™ benchmarks that capture the common read patterns used by analysis codes. Second, these read patterns are used to evaluate different IO techniques at scale to understand the effects of alternative data sizes and organizations in relation to the performance seen by end users. Third, defining the novel notion of a â€˜data districtâ€™ to characterize how data is organized for reads, we experimentally compare the read performance seen with the ADIOS middlewareâ€™s log-based BP format to that seen by the logically contiguous NetCDF or HDF5 formats commonly used by analysis tools. Measurements assess the performance seen across patterns and with different data sizes, organizations, and read process counts. Outcomes demonstrate that high end-to-end IO performance requires data organizations that offer flexibility in data layout and placement on parallel storage targets, including in ways that can make tradeoffs in the performance of data writes vs. reads.},
+    booktitle = {In Proceedings of High Performance and Distributed Computing},
+    year = {2011}
+}
+
+@inproceedings{lofstead:2012:txn,
+ author= {Jay Lofstead and Jai Dayal and Karsten Schwan and Ron Oldfield},
+ title = {D2T: Doubly Distributed Transactions for High Performance and Distributed Computing},
+ abstract = {Current exascale computing projections suggest rather than a monolithic simulation running for the majority of the machine, a collection of components comprising the scientific discovery process will be employed in an online workflow. This move to an online workflow scenario requires knowledge that inter-step operations are completed and correct before the next phase begins. Further, dynamic load balancing or fault tolerance techniques may dynamically deploy or redeploy resources for optimal use of computing resources. These newly configured resources should only be used if they are successfully deployed.
+Our D2T system offers a mechanism to support these kinds of operations by providing database-like transactions with distributed servers and clients. Ultimately, with adequate hardware support, full ACID compliance is possible for the transactions. To prove the viability of this approach, we show that the D2T protocol has less than 1.2 seconds of overhead using 4096 clients and 32 servers with good scaling characteristics using this initial prototype implementation.},
+ year = {2012},
+ month = {September},
+ booktitle = {IEEE Cluster Conference},
+ address = {Beijing, China},
+}
+
+@INPROCEEDINGS{lofstead:2014:txn,
+author={Lofstead, J. and Dayal, J. and Jimenez, I. and Maltzahn, C.},
+booktitle={Data Intensive Scalable Computing Systems (DISCS), 2014 International Workshop on},
+title={Efficient, Failure Resilient Transactions for Parallel and Distributed Computing},
+year={2014},
+month={Nov},
+pages={17-24},
+keywords={fault diagnosis;parallel processing;storage management;centralized persistent storage;distributed computing;doubly distributed transaction protocol;failure resilient transaction;fault detection;fault recovery;integrated application workflow;node-to-node communication;parallel computing;Computational modeling;Data models;Memory;Protocols;Semantics;Servers;Standards},
+doi={10.1109/DISCS.2014.13},}
+
+@techreport{jeanbaptiste:2015:delta,
+        Author = {Gregory Jean-Baptiste and Jay Lofstead and Ron Oldfield},
+        Institution = {Sandia National Laboratories},
+        Month = {June},
+        Number = {SAND2015-5029},
+        Owner = {gflofst},
+        Title = {Delta: Data Reduction for Integrated Application Workflows},
+        Year = {2015},
+}
+
+@incollection{lakshminarasimhan:2011:isabela,
+  title={Compressing the incompressible with ISABELA: In-situ reduction of spatio-temporal data},
+  author={Lakshminarasimhan, Sriram and Shah, Neil and Ethier, Stephane and Klasky, Scott and Latham, Rob and Ross, Rob and Samatova, Nagiza F},
+  booktitle={Euro-Par 2011 Parallel Processing},
+  pages={366--379},
+  year={2011},
+  publisher={Springer}
+}
+
+@INPROCEEDINGS{klappenecker:1995:wavelet,
+    author = {Andreas Klappenecker and Frank U. May},
+    title = {Evolving Better Wavelet Compression Schemes},
+    booktitle = {in Proc. of Wavelet Applications in Signal and Image Processing III, 12{14}},
+    year = {1995},
+    pages = {614--622}
+}
+
+@inproceedings{moody:2010:scr,
+  title={Design, modeling, and evaluation of a scalable multi-level checkpointing system},
+  author={Moody, Adam and Bronevetsky, Greg and Mohror, Kathryn and De Supinski, Bronis R},
+  booktitle={High Performance Computing, Networking, Storage and Analysis (SC), 2010 International Conference for},
+  pages={1--11},
+  year={2010},
+  organization={IEEE}
+}
+
+@inproceedings{bautista:2011:fti,
+  title={FTI: high performance fault tolerance interface for hybrid systems},
+  author={Bautista-Gomez, Leonardo and Tsuboi, Seiji and Komatitsch, Dimitri and Cappello, Franck and Maruyama, Naoya and Matsuoka, Satoshi},
+  booktitle={Proceedings of 2011 international conference for high performance computing, networking, storage and analysis},
+  pages={32},
+  year={2011},
+  organization={ACM}
+}
+
+@inproceedings{wang:2013:ceph,
+  title={Performance and scalability evaluation of the Ceph parallel file system},
+  author={Wang, Feiyi and Nelson, Mark and Oral, Sarp and Atchley, Scott and Weil, Sage and Settlemyer, Bradley W and Caldwell, Blake and Hill, Jason},
+  booktitle={Proceedings of the 8th Parallel Data Storage Workshop},
+  pages={14--19},
+  year={2013},
+  organization={ACM}
+}
+
+@inproceedings{weil:2006:ceph,
+ author = {Weil, Sage A. and Brandt, Scott A. and Miller, Ethan L. and Long, Darrell D. E. and Maltzahn, Carlos},
+ title = {Ceph: A Scalable, High-performance Distributed File System},
+ booktitle = {Proceedings of the 7th Symposium on Operating Systems Design and Implementation},
+ series = {OSDI '06},
+ year = {2006},
+ isbn = {1-931971-47-1},
+ location = {Seattle, Washington},
+ pages = {307--320},
+ numpages = {14},
+ url = {http://dl.acm.org/citation.cfm?id=1298455.1298485},
+ acmid = {1298485},
+ publisher = {USENIX Association},
+ address = {Berkeley, CA, USA},
+} 
+
+@inproceedings{ross:2006:pvfs,
+ author = {Ross, Robert and Latham, Robert},
+ title = {PVFS: A Parallel File System},
+ booktitle = {Proceedings of the 2006 ACM/IEEE Conference on Supercomputing},
+ series = {SC '06},
+ year = {2006},
+ isbn = {0-7695-2700-0},
+ location = {Tampa, Florida},
+ articleno = {34},
+ url = {http://doi.acm.org/10.1145/1188455.1188490},
+ doi = {10.1145/1188455.1188490},
+ acmid = {1188490},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+} 
+
+@techreport{boyer:2012:glusterfs,
+  title={Glusterfs one storage server to rule them all},
+  author={Boyer, Eric B and Broomfield, Matthew C and Perrotti, Terrell A},
+  year={2012},
+  institution={Los Alamos National Laboratory (LANL)}
+}
+
+@inproceedings{oldfield:2006:lwfs,
+        Abstract = {Efficient data movement is an important part of any high-performance
+        I/O system, but it is especially critical for the current and next-generation
+        of massively parallel processing (MPP) systems. In this paper, we
+        discuss how the scale, architecture, and organization of current
+        and proposed MPP systems impact the design of the data-movement scheme
+        for the I/O system. We also describe and analyze the approach used
+        by the Lightweight File Systems (LWFS) project, and we compare that
+        approach to more conventional data-movement protocols used by small
+        and mid-range clusters. Our results indicate that the data-movement
+        strategy used by LWFS clearly outperforms conventional data-movement
+        protocols, particularly as data sizes increase.},
+        Address = {Barcelona, Spain},
+        Author = {Ron A. Oldfield and Patrick Widener and Arthur B. Maccabe and Lee Ward and Todd Kordenbrock},
+        Booktitle = hiperio2006,
+        Date-Modified = {2011-03-31 11:15:20 -0600},
+        Doi = {10.1109/CLUSTR.2006.311897},
+        Institution = {Sandia National Laboratories},
+        Keywords = {lightweight storage, data movement, scalable-io, Portals, LWFS, pario-bib},
+        Month = sep,
+        Owner = {raoldfi},
+        Timestamp = {2006.05.15},
+        Title = {Efficient Data-Movement for Lightweight {I/O}},
+        Url = {http://doi.ieeecomputersociety.org/10.1109/CLUSTR.2006.311897},
+        Vitatype = {refConference},
+        Year = {2006},
+        Bdsk-Url-1 = {http://doi.ieeecomputersociety.org/10.1109/CLUSTR.2006.311897},
+        Bdsk-Url-2 = {http://dx.doi.org/10.1109/CLUSTR.2006.311897}}
+

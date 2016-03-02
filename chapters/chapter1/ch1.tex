@@ -92,19 +92,21 @@ integration of these large, expensive platforms for multi-use.
 
 HDFS developed to support the Hadoop implementation of the MapReduce system. It
 offers a distributed, replicated file store optimized to support the MapReduce
-processing configuration. Ceph also addresses this distributed computing
-infrastructure, but with a different emphasis. It seeks to offer scale out
-performance for objects across a storage infrastructure. However, Ceph does not
-offer the ability to scale up: Each object must fit within a single storage
-device. With the rise of cloud systems using object-based storage, such as
-Amazon's S3, the interaction style offered by Ceph has been adopted for similar
-workloads. Ceph has features to handle storage devices failing and new ones
-joining a running system without interruption. Ceph offers a complete file
-system including metadata management support as well as an object system for
-users. GlusterFS focuses on providing a network attached storage interface to
-storage distributed throughout a cluster. Rather than providing metadata
-services, GlusterFS relies on the underlying storage file system for most basic
-capabilities, such as security.
+processing configuration. Ceph~\cite{weil:2006:ceph} also addresses this
+distributed computing infrastructure, but with a different emphasis. It seeks
+to offer scale out performance for objects across a storage infrastructure
+with unreliable storage.  However, Ceph has historically had some fundamental
+assumptions that incur overheads that are unacceptably large for a high end HPC
+center~\cite{wang:2013:ceph}.  With the rise of cloud systems using
+object-based storage, such as Amazon's S3, the interaction style offered by
+Ceph has been adopted for similar workloads. Ceph's unreliable storage handling
+works for both new storage additions as well as failures and recoveries without
+interruption. Ceph offers a complete file system including metadata management
+support as well as an object system for users.
+GlusterFS~\cite{boyer:2012:glusterfs} focuses on providing a network attached
+storage interface to storage distributed throughout a cluster.  Rather than
+providing metadata services, GlusterFS relies on the underlying storage file
+system for most basic capabilities, such as security.
 
 Parallel file systems are optimized to support large files that must be spread
 across multiple devices. For example, a 100~TB file cannot fit on any current
@@ -118,12 +120,11 @@ are deployed on most simulation intensive large scale compute systems to handle
 the large single object output characteristic of these applications.  Lustre is
 arguably the most popular parallel file system appearing on a majority of the
 Top500 machines. IBM's GPFS is increasing in popularity as optimizations
-focusing on addressing big data workloads are incorporated. PVFS offers a
-rethinking of some of Lustre's earlier limitations to give better scalability
-characteristics.
+focusing on addressing big data workloads are incorporated.
+PVFS~\cite{ross:2006:pvfs} offers a rethinking of some of Lustre's earlier
+limitations to give better scalability characteristics.
 
-~\\
-\noindent\textbf{Discussion}\\
+~\\\noindent\textbf{Discussion}\\
 The different optimizations distributed vs. parallel file systems offer are at
 the cost of supporting the other kind of workload. As was mentioned above,
 parallel file systems aim to support very large objects and aggregate
@@ -135,6 +136,36 @@ object make them unsuitable for simulation workloads.
 
 For both workloads, a more flexible object-based interface are being
 considered. This is discussed more below.
+
+\section{Bridging Technologies}
+
+While the shift to object stores pushes forward, we do have several pieces of
+bridging tecnologies that may transition easily into the object storage
+environment.
+
+For efficient checkpoint/restart storage, two similar approaches are leveraging
+the complex storage hierarchy to keep this rarely needed data out of the
+storage array. Scalable Checkpoint Restart (SCR)~\cite{moody:2010:scr} and the
+Fault Tolerant Interface for Hybrid Systems (FTI) ~\cite{bautista:2011:fti}
+both use other in compute area resources to address checkpoint writing and
+recovery performance. SCR focuses on hierarchical modeling while FTI focuses on
+supporting hybrid compute like GPU-based systems.
+
+Also working to bridge the gap are burst buffers. In short, burst buffers are
+some generally non-volatile memory (NVM) somewhere within the compute area
+intended for use as intermediate storage of some sort.  One of the first formal
+burst buffer products is DataWarp from Cray. IBM also has a similar product to
+be deployed on machines in 2016. The goal of these technologies is to offer a
+high performance, but limited capacity storage area as a fast cache for the
+parallel file system. Other uses for this storage is not the primary concern.
+The motivating use case is that buying sufficient disks to achieve the
+necessary parallel, aggregate performance is too costly, takes up too much
+space, and has too many failures just to the very large number of devices.
+Instead, disk is bought primarly for capacity while the burst buffer is bought
+based on performance. The combination price yields less total storage, but the
+performance characteristics are more favorable. Moving to a pure NVM solution
+directly is too cost prohibitive for the next several years. Capacity and
+durability are still too expensive.
 
 \section{Object-Based Stores}\label{sec:intro}
 
@@ -194,13 +225,11 @@ determine what data is stored in which object.
 
 \section{Next Generation HPC Storage Systems}\label{sec:intro}
 
-Here we want to talk about, at a proposal sort of level, what we think needs
-to be done.
-
-Talk about the disconnect between metadata and storage and the complications
-it introduces and some ideas on what we plan to do about it.
-
-Talk about the major efforts
+Next generation storage infrastructures are taking on several different forms
+with additional approaches both possible and likely. Almost certianly, multiple
+of these approaches will last including evolutions of existing systems such
+as IBM's GPFS. This section discusses four examples of different kinds of
+storage infrastructures for the exascale environment.
 
 \subsection{Lustre/DAOS}
 
@@ -245,7 +274,7 @@ available containers. The reasoning behind this structure is a bit complicated,
 but quite reasonable.
 
 Potentially extreme overheads for writing logically contiguously formatted data
-is well documented. For example, ParColl~\cite{yu:2006:parcoll} showed as much
+is well documented. For example, ParColl~\cite{yu:2008:parcoll} showed as much
 as 90\% overhead on as few as 512 processes. For the Six Degrees of Scientific
 Data~\cite{lofstead:2011:six-degrees} work, the authors were unable to perform
 some performance comparisons because a single data output could not be written
@@ -298,16 +327,16 @@ version, differencing mechanisms are tested to determine how to efficiently
 store both versions with less space and minimal reconstruction overhead. When
 small changes are persisted, the space savings can be enormous.
 
-Other, more general approaches to transactions have been
-developed~\cite{lofstead:2012:txn-cluster,lofstead:2014:txn-discs}, but they
-have higher end-user API complexity to support the more general use. Other than
-the synchronous requirement for failure detection, the performance is
-excellent.
+The Doubly Distributed Transactions Project ({D\textsuperscript{2}T}) offers a
+more general approach to
+transactions~\cite{lofstead:2012:txn,lofstead:2014:txn}. The end-user
+programming cost is higher to support the more general use. Other than the
+synchronous requirement for failure detection, the performance is excellent.
 
 For future transactional use in the storage hierarchy, some mixture of the
 three approaches is likely. The passive transactions will be used for backwards
 compatibility. The end-user, single process managed transactions will work well
-for storage system interactions. The D2T approach could be used in isolation or
+for storage system interactions. The {D\textsuperscript{2}T} approach could be used in isolation or
 to support the end-user, single process managed transactions.
 
 \subsubsection{API Complexity}
@@ -489,10 +518,10 @@ determine the auditor drift. Using this approach major events or periodic
 timesteps can be output using full fidelity while many intermediate results can
 be output using the auditor state generating high quality lossy representations
 of what the intermediate simulation state would be like. There are other lossy
-approaches available. For example, ISABELLA~\cite{isabella} offers a sorted
+approaches available. For example, ISABELA~\cite{lakshminarasimhan:2011:isabela} offers a sorted
 data set with B-Spline curve fitting to reduce the data set size.
-Delta~\cite{delta} looks at simple diffs to reduce the data set with low
-space-time overheads with no loss. Wavelet compression~\cite{wavelet} low
+Delta~\cite{jeanbaptiste:2015:delta} looks at simple diffs to reduce the data set with low
+space-time overheads with no loss. Wavelet compression~\cite{klappenecker:1995:wavelet} low
 space-time overheads with potentially radially high data compression with
 predictable error rates. Each of these approaches can be useful in different
 circumstances.
@@ -522,7 +551,7 @@ validate the results generated from the lower fidelity data versions. These
 kinds of techniques will be increasingly important to maximize both platform
 productivity as well as scientist productivity.
 
-\subsection{Radical Departures}
+\subsection{Radical Departure}
 The Sirocco Storage Sytem from Sandia takes inspiration from peer-to-peer
 systems to rethink how a storage system should work for HPC. Instead of relying
 on existing notions of striping files across storage devices, it is fully
@@ -548,22 +577,23 @@ rethinking is being done with a nod to backwards compatibility by offering a
 POSIX interface that can access a particular view of the storage system. The
 native interface is object based with containers collecting objects each of
 which have multiple data forks that can be accessed through an address space.
-These four abstract levels offers flexibility to address HPC, EOD, and large
-scale data analytics needs.
+These four abstract levels offers flexibility to address HPC, Experimental and
+Oversational Data, and large scale data analytics needs.
 
-The roots of Sirocco are in the Lightweight File Systems (LWFS) project at
-Sandia from several years ago. LWFS sought to strip down a file system to the
-bare, required components and allow users to add additional capabilities paying
-the overhead for only those features required. For example, the LWFS core
-consists of an object store with authentication and authorization services
-only. Other features, such as naming and consistency control, are left to
-separate services. Sirocco seeks to provide the storage layer that an
-LWFS-style system would require. Keeping this in mind will help explain some of
-the decisions made. For example, a non-Sirocco client accessing or manipulating
-data is equivalent to going directly to disk and reading or modifying bytes
-rather than going through the file system interface. Protections against such
-access are not included since it is intended to act like a device like disk
-only accessed through a file system interface of some sort.
+The roots of Sirocco are in the Lightweight File Systems
+(LWFS)~\cite{oldfield:2006:lwfs} project at Sandia from several years ago. LWFS
+sought to strip down a file system to the bare, required components and allow
+users to add additional capabilities paying the overhead for only those
+features required. For example, the LWFS core consists of an object store with
+authentication and authorization services only. Other features, such as naming
+and consistency control, are left to separate services. Sirocco seeks to
+provide the storage layer that an LWFS-style system would require. Keeping this
+in mind will help explain some of the decisions made. For example, a
+non-Sirocco client accessing or manipulating data is equivalent to going
+directly to disk and reading or modifying bytes rather than going through the
+file system interface. Protections against such access are not included since
+it is intended to act like a device like disk only accessed through a file
+system interface of some sort.
 
 One way to think about how Sirocco works is as a reverse Bittorrent system. In
 a typical Bittorrent system, a seed offers a file for others to replicate as
@@ -595,18 +625,18 @@ Logically, Sirocco uses a containers, objects, forks, and address spaces tuple t
 
 All of these concepts rely on IDs or ranges. Each of these are represented by a 64-bit number. This specifies the size of all of these spaces. When considering these concepts, a rich format like HDF5 helps understand the purpose of each. Sirocco goes beyond HDF5's capabilities to offer new features common in other kinds of storage systems.
 
-\noindent\textbf{Containers}\\
+~\\\noindent\textbf{Containers}\\
 The container is equivalent to a file in a traditional file system. The idea of
 using a container rather than a file is that it is really a capability envelope
 for an object collection rather than a single byte stream. Each container
 contains zero or more objects.
 
-\noindent\textbf{Objects}\\
+~\\\noindent\textbf{Objects}\\
 Each object can be though of as a variable in an HDF5 file. For example, an
 array or scalar value may each be stored in a single object. The object 0 for
 every container is reserved.
 
-\noindent\textbf{Forks and Address Spaces}\\
+~\\\noindent\textbf{Forks and Address Spaces}\\
 Each object can have multiple versions or views referred to as a ``fork''.
 These forks are similar to the old Macintosh OS resource and data forks stored
 for each file. In this case, the number of forks is limited by a 64-bit number.
@@ -621,10 +651,10 @@ concept. Many other potential uses are also possible and not artificially
 limited by the system.
 
 To access data within a fork, a 64-bit address space is referenced. Each
-selected address portion is called a \em{range}. When writing, data is provided
+selected address portion is called a {\em range}. When writing, data is provided
 for the range and pushed into Sirocco. The address space is treated as a key
 value store using the address ranges as the key and the data as the value. Each
-value is versioned with the versions being accessible. HOW?
+value is versioned with the versions being accessible.
 
 Each address space within a fork is limited to 4 GiB currently. For the short
 term, users are required to write multiple ranges as part of an extent to write
@@ -641,7 +671,7 @@ comprising a single storage tier. Sirocco makes no such association as it
 treats all potential storage locations as peers and selects which to use based
 on the resilience characteristics requested.
 
-\noindent\textbf{Device Characteristics}\\
+~\\\noindent\textbf{Device Characteristics}\\
 Device characteristics affect two different system functions. First, they
 specify the performance that can be expected when accessing the device. Second,
 they specify a resilience metric that is used for data protection and
@@ -675,7 +705,7 @@ to meet the resilience requirement exist, Sirocco will migrate the affected
 data towards or into the tape system to free space required for the current
 operation.
 
-\noindent\textbf{Finding Data}\\
+~\\\noindent\textbf{Finding Data}\\
 Given the assumed transient device existence, Sirocco works to keep data with
 required resilience characteristics as devices come and go. When a device is
 discovered to be missing, any replicas stored on that device must find
@@ -691,7 +721,7 @@ to minimize this possibility, but it is impossible to guarantee that data will
 always be available unless all data is replicated on all storage devices--a
 clearly infeasible solution.
 
-\noindent\textbf{Authoritative Copy}\\
+~\\\noindent\textbf{Authoritative Copy}\\
 Something that may come to mind with the broad discussion of having multiple
 data copies for resilience and transient storage devices is how to know what
 the ``official'' data version is. This is handled through the idea of an
@@ -700,7 +730,7 @@ authoritative copy. Should that copy be ``far'' from the client, the client can
 request that the authoritative copy migrate to a nearby server to offer better
 interactive performance.
 
-\noindent\textbf{Server to Server Communication}\\
+~\\\noindent\textbf{Server to Server Communication}\\
 Since Sirocco has no central point of control, any data can be requested or
 written to any server in the swarm. If the data is not stored on that server,
 Sirocco starts to search by asking nearby servers if they have or know where
@@ -711,7 +741,7 @@ initiated the request through. By requesting the authoritative copy migrate,
 the user can force the primary copy to move to the server the request was
 initiated through.
 
-\noindent\textbf{Client APIs}\\
+~\\\noindent\textbf{Client APIs}\\
 While the native interaction for the 4-tuple (container ID, object ID, fork ID,
 address space) is an object interface, it does not address needs of existing
 applications or file system APIs. While this is the preferred interface since
