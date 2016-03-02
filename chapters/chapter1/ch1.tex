@@ -204,30 +204,327 @@ Talk about the major efforts
 
 \subsection{Lustre/DAOS}
 
-The FFSIO phase II sort of info to start. Keep it acceptable. This seems to me
-to be just a pure object store.
+The US Department of Energy is using a ``Fast Forward'' series of projects to
+kickstart needed developments in the vendor space. One such project is the
+Storage and I/O (FFSIO). The basis for this is extending the existing Lustre
+infrastructure to offer an object interface, incorporate support for burst
+buffer-like technoligies, and demonstrate use through a client I/O library. 
+The first phase completed in 2014 and the second phase started in late 2015.
+
+\begin{figure}[htbp]
+\vspace{-0.10in}
+\centering
+\includegraphics[width=\columnwidth]{chapters/chapter1/figures/arch-mapping}
+\vspace{-0.15in}
+\caption{FFSIO Architecture and Component Mapping}
+\label{fig:arch-mapping}
+\vspace{-0.15in}
+\end{figure}
+
+Overall, the system design (see Figure~\ref{fig:arch-mapping}) consists of a
+friendly end-user API that manipulates either the I/O Dispatcher layer or the
+DAOS (Distributed Asynchronous Object Storage) layer.
+
+The first phase design focuses on a few themes. First, transactions are
+integral to offering decoupled performance. Second, storing many individual
+objects rather than logically organized fewer objects is prefered. And third,
+hide additional API complexity behind a friendly end-user API.
+
+\subsubsection{Transactions}
+The system jitter and other causes for processes to fade out of sync affect
+overall I/O performance as well. While transactions are typically seen as a
+synchronous operation that blocks while all participants manage state, FFSIO
+takes a passive approach and manages transactions asynchronously. The key idea
+is to keep writes in a log-style copy-on-write structure and annotate each
+write with which transaction it is part of. An overall transaction mapping
+knows how many writes are expected and can decide when a transaction is
+complete or not. By monitoring the system status, it can passively detect many
+failures abort the affected transactions. The potential overheads to this
+approach are refining the idea, but the core concept shall remain the same.
+
+Transactions are manifest in two different ways. First, the end-user API layer
+can opt to have the FFSIO system manage the transactions by that layer
+tracking the status of all clients directly. Second, transactions can be
+managed by the end-user layer themselves with a single process indicating the
+transaction state to the FFSIO layer. The idea for the former approach is that
+it offers transactional functionality without undue end user code changes. At
+the IOD and DAOS layer, transactions are handled slightly differently.
+
+The IOD layer is intended as a staging area for data that may or may not need
+to be written to persistent storage. This is one implementation of the burst
+buffer concept. The key idea is that the transactions in this layer may or may
+not ever be pushed down to the DAOS layer. Instead, once the data set is
+processed, only the analyzed results will be saved eliminating the need to
+write large, temporary data sets to the slower, but much larger capacity
+storage array. However, these transactions are connected to those at the DAOS
+layer.
+
+The DAOS layer is intended to function as a general object store that would
+replace an existing data center wide shared parallel file system. Anything
+written to this layer is expected to have longer lifetimes and potentially be
+accessible from other platforms. Since the transactions work a bit differently,
+in particular some sequential transactions may be missing, the name is changed
+to epochs instead. The slightly different idea for an epoch is to represent
+some important saved state. Since it is likely a revision of an existing
+version, differencing mechanisms are tested to determine how to efficiently
+store both versions with less space and minimal reconstruction overhead. When
+small changes are persisted, the space savings can be enormous.
+
+Other, more general approaches to transactions have been
+developed~\cite{lofstead:2012:txn-cluster,lofstead:2014:txn-discs}, but they
+have higher end-user API complexity to support the more general use. Other than
+the synchronous requirement for failure detection, the performance is
+excellent.
+
+For future transactional use in the storage hierarchy, some mixture of the
+three approaches is likely. The passive transactions will be used for backwards
+compatibility. The end-user, single process managed transactions will work well
+for storage system interactions. The D2T approach could be used in isolation or
+to support the end-user, single process managed transactions.
+
+\subsubsection{Objects}
+Potentially extreme overheads for writing logically contiguously formatted data
+is well documented. For example, ParColl~\cite{yu:2006:parcoll} showed as much
+as 90\% overhead on as few as 512 processes. For the Six Degrees of Scientific
+Data~\cite{lofstead:2011:six-degrees} work, the authors were unable to perform
+some performance comparisons because a single data output could not be written
+in the maximum normal job time. These sorts of impacts are prompting rethinking
+the logically contiguous format favored by popular APIs like HDF5 and PnetCDF.
+The perceived advantages when these formats were selected have not proven to
+scale to very large, 3-D domain decompositions in particular. DAOS, offers the
+object storage infrastructure while the HDF5 API at the end-user level is
+maintained almost exactly. The only end-user API changes are related to
+incorporating transactions. This shift almost exactly maintains backwards
+compatibility while taking advantage of more scalable infrastructures.
+
+\subsubsection{API Complexity}
+One of the complexities of the FFSIO stack is addressing various scale
+platforms. For the largest platforms, including an IOD layer makes sense. The
+particular architecture may vary, but that kind of technology will be important
+to reduce compute throughput due to waiting for I/O to complete. For smaller
+platforms, either the IOD layer is deemed unnecessary or it may be an extra
+expense that offers little advantage. In this case, omitting this component
+both simplifies the system and offers more direct performance.
+
+The challenge with this approach is that the end-user level must address both
+the IOD and DAOS APIs directly and be able to choose for fully portable code.
+The advantages of being able to effectively scale down were maintained by using
+a higher-level end-user API, like HDF5. For such a professionally produced
+library, offering a second version is not a major undertaking. Further, it
+enhances the HDF5 value by offering greater platform scalability.
+
+\subsubsection{Discussion}
+Overall, the shift from a traditional parallel file system to something like
+the FFSIO system will be a big step forward towards supporting more big data
+style hardware directly. While the design is not perfect, the second phase is
+addressing most, if not all, of the detected shortcomings. 
 
 \subsection{Kelpie/Data Warehousing}
 
-Kelpie is a distributed, in-memory object store from Sandia National Laboratories that serves as a building block in high-performance computing for implementing custom, data-management services. The fundamental goal of Kelpie is to provide a way for users to decompose their complex datasets into data objects that the library can move between nodes in a safe but efficient manner. Kelpie provides simple abstractions for dealing with distributed data, and utilizes the Nessie communication library to orchestrate how data migrates between nodes. Nessie provides (1) a low-level RDMA layer that has been ported to different HPC fabrics and (2) an RPC layer that enables users to invoke function calls and initiate RDMA transfers on remote nodes. Kelpie uses the former to make an application's data objects accessible by the network interface, and the latter to cooridinate data handoffs between nodes.
+Kelpie is a distributed, in-memory object store from Sandia National
+Laboratories that serves as a building block in high-performance computing for
+implementing custom, data-management services. The fundamental goal of Kelpie
+is to provide a way for users to decompose their complex datasets into data
+objects that the library can move between nodes in a safe but efficient manner.
+Kelpie provides simple abstractions for dealing with distributed data, and
+utilizes the Nessie communication library to orchestrate how data migrates
+between nodes. Nessie provides (1) a low-level RDMA layer that has been ported
+to different HPC fabrics and (2) an RPC layer that enables users to invoke
+function calls and initiate RDMA transfers on remote nodes. Kelpie uses the
+former to make an application's data objects accessible by the network
+interface, and the latter to cooridinate data handoffs between nodes.
 
-Kelpie manages data objects for applications, where a data object is a simply a contiguous block of application data that is labeled with a globally-unique key. The contiguous constraint is necessary because Kelpie registers the memory with the network interface, which in turn allows the hardware to RDMA the data without involving the kernel in virtual to physical address translation. The key used to label an object has three components: an application-specific identifier and a two-dimensional user label. The application-specific identifier enables higher-level services to house different datasets in Kelpie with isolation. Users are not required to use the second dimension of the user label portion of the key. However, the second dimension is often useful for grouping related items together in the store. For example when storing complex mesh datasets in Kelpie, the first dimension of the key (or row) may be used to describe a particular region of a mesh. The second dimension of the key can therefore be used to organize different variables associated with the region (e.g., node locations, pressure, or temperature). This approach allows each variable's data to be stored in its own, independent block of contiguous memory, and provides an opportunity for a user to easily downselect the items they need when retrieving data from Kelpie.
+Kelpie manages data objects for applications, where a data object is a simply a
+contiguous block of application data that is labeled with a globally-unique
+key. The contiguous constraint is necessary because Kelpie registers the memory
+with the network interface, which in turn allows the hardware to RDMA the data
+without involving the kernel in virtual to physical address translation. The
+key used to label an object has three components: an application-specific
+identifier and a two-dimensional user label. The application-specific
+identifier enables higher-level services to house different datasets in Kelpie
+with isolation. Users are not required to use the second dimension of the user
+label portion of the key. However, the second dimension is often useful for
+grouping related items together in the store. For example when storing complex
+mesh datasets in Kelpie, the first dimension of the key (or row) may be used to
+describe a particular region of a mesh. The second dimension of the key can
+therefore be used to organize different variables associated with the region
+(e.g., node locations, pressure, or temperature). This approach allows each
+variable's data to be stored in its own, independent block of contiguous
+memory, and provides an opportunity for a user to easily downselect the items
+they need when retrieving data from Kelpie.
 
-Kelpie nodes are equipped with a Local Key/Value (LKV) structure for managing data objects that are available in the local node. The LKV performs three important tasks. First the LKV provides a means of tracking data objects that are currently in transit and protect the system from deallocating an object before remote nodes have finished transferring it. Second, the LKV structure provides a means for data to be staged at a remote node with only trivial involvement from the destination. For example, an application may push multiple data objects to a node in anticipation of work that will be scheduled on the remote node at a future time. Finally, the LKV structure provides a location for applications to store callbacks to execute when data does arrive at a node. These callbacks make the data store more active and are fundamental to applications that are highly asynchronous or event driven.
+Kelpie nodes are equipped with a Local Key/Value (LKV) structure for managing
+data objects that are available in the local node. The LKV performs three
+important tasks. First the LKV provides a means of tracking data objects that
+are currently in transit and protect the system from deallocating an object
+before remote nodes have finished transferring it. Second, the LKV structure
+provides a means for data to be staged at a remote node with only trivial
+involvement from the destination. For example, an application may push multiple
+data objects to a node in anticipation of work that will be scheduled on the
+remote node at a future time. Finally, the LKV structure provides a location
+for applications to store callbacks to execute when data does arrive at a node.
+These callbacks make the data store more active and are fundamental to
+applications that are highly asynchronous or event driven.
 
-In order to address scalability concerns, data management services for HPC typically decompose their work in a hierarchical manner that maps owenership of different portions of the dataset to different groups of nodes that are close in proximity. Kelpie provides the ability to assemble multiple teams of nodes together through a resource management interface. This interface allows users to create and reference a team of nodes together to function as a single data resource that employs a standard data API. A resource has three components: a path-like name that allows a resource to be globally referenced and located by the runtime, a list of physical nodes that implement the resource, and client-side software that defines that policy for how data is managed in the resource. Kelpie provides common implementations of resources, but is easily extended with user-defined modules. A distributed hash table (DHT) is an example of a commonly-used resource in Kelpie. A DHT is composed of N Kelpie servers where data is distributed by using a hash of the first dimension of the key to specify which node should store the object. The DHT resource client software simply maintains the list of servers and then references the proper destination when a user performs put or get operations. Users with reliability concerns have made similar resources just by creating new client software that stores a data object to the hashed server, and a replicated copy to its neighbor. While resources may contain API extensions to support higher levels of functionality, they all support basic communication primitives that enable users to swap one type of resource in for another in most cases.
+In order to address scalability concerns, data management services for HPC
+typically decompose their work in a hierarchical manner that maps owenership of
+different portions of the dataset to different groups of nodes that are close
+in proximity. Kelpie provides the ability to assemble multiple teams of nodes
+together through a resource management interface. This interface allows users
+to create and reference a team of nodes together to function as a single data
+resource that employs a standard data API. A resource has three components: a
+path-like name that allows a resource to be globally referenced and located by
+the runtime, a list of physical nodes that implement the resource, and
+client-side software that defines that policy for how data is managed in the
+resource. Kelpie provides common implementations of resources, but is easily
+extended with user-defined modules. A distributed hash table (DHT) is an
+example of a commonly-used resource in Kelpie. A DHT is composed of N Kelpie
+servers where data is distributed by using a hash of the first dimension of the
+key to specify which node should store the object. The DHT resource client
+software simply maintains the list of servers and then references the proper
+destination when a user performs put or get operations. Users with reliability
+concerns have made similar resources just by creating new client software that
+stores a data object to the hashed server, and a replicated copy to its
+neighbor. While resources may contain API extensions to support higher levels
+of functionality, they all support basic communication primitives that enable
+users to swap one type of resource in for another in most cases.
 
-An example of how Kelpie is being utilized to support data management for higher-level applications can be found in Sandia's DARMA project. DARMA is developing an asynchronous, many-task (AMT) approach to computing that will help codes scale to next-generation platforms. AMT codes specify their execution in the form of a large, directed acyclic graph of tasks (or task DAG) that can be scheduled by a runtime on distributed resources. The data objects consumed and produced by each task form a dependency graph that dictate when and where work can be scheduled. By utilizing Kelpie as the mechanism by which data objects are migrated between different nodes and resources in the system, DARMA can focus on the complex job of making policy decisions about how the work should be orchestrated in the platform.
+An example of how Kelpie is being utilized to support data management for
+higher-level applications can be found in Sandia's DARMA project. DARMA is
+developing an asynchronous, many-task (AMT) approach to computing that will
+help codes scale to next-generation platforms. AMT codes specify their
+execution in the form of a large, directed acyclic graph of tasks (or task DAG)
+that can be scheduled by a runtime on distributed resources. The data objects
+consumed and produced by each task form a dependency graph that dictate when
+and where work can be scheduled. By utilizing Kelpie as the mechanism by which
+data objects are migrated between different nodes and resources in the system,
+DARMA can focus on the complex job of making policy decisions about how the
+work should be orchestrated in the platform.
 
-
+\subsubsection{Discussion}
+Kelpie is clearly taking a different approach from the FFSIO project. By
+pushing the key-value structure all the way up to the application, it requires
+a whole new interaction between the applications and the storage
+infrastructure, but at a potential advantage of much richer, higher
+performance. For example, by integrating with the AMT management layer, Kelpie
+can predictively move data as necessary or even guide the AMT manaagement layer
+to place computation in a different location to avoid the data movement. Also,
+by offering object level access beyond what an application would normally write
+to storage, potentially new data access routines for richer analysis could be
+integrated without requiring any application changes. Simply by registering all
+data through Kelpie for use in the AMT management layer, other users could take
+advantage of the metadata and select data for additional analysis without
+worrying about explicit staging or writing to some persistent store.
 
 \subsection{Hybrid Models}
 
-SSIO project from ORNL/Sandia
+A different take on the problem is being investigated in a DOE sponsored
+project called SIRIUS primarily by Oak Ridge, Sandia, UC Santa Cruz, Rutgers,
+and Brown. In this project, we seek to address the performance mismatch more
+directly through several apporaches simultaneously.
 
-\section{Conclusions}\label{sec:intro}
+First, using a single storage tier at a time leaves potential performance
+untapped. Instead of the traditional structure where an output is pushed to a
+particular storage tier and it is maintained on that tier (or partially through
+some sort of hierarchal storage management system), all tiers are used directly
+at the same time. For example, when writing a large data set for a molecular
+dynamics code simulating crack formation, only certain areas contain important
+features required for detailed analysis the rest of the data is not as
+important. Consequently, SIRIUS seeks to write the important parts of the data
+set to the fastest tier with the less important spooled to slower tier(s). In
+many cases, if the output for the slower tier fails, the data set is still
+usable enabling throwing away the less unteresting data set portions given
+system performance pressures.
 
-This is our overall view on things
+For performance reasons, much like the other solutions discussed above, SIRIUS
+is assuming an object storage layer beneath the API. This layer could be DAOS,
+Kelpie, the Sandia Sirocco storage system, Ceph, or any other object-based
+infrastructures. Which object storage infrastructure employed will be flexible
+depending on the data center and application workloads requirements.
+
+Second, feature identification ane extraction can be expensive in time and
+space or may not be applicable to the simulation type. For example, particle in
+cell simulations use statistical measures for all particles in cell regions to
+determine simulation values. Tagging particular particles as potentially
+extraneous for a particular output is expensive. Instead, other techniques to
+slice the data may be employed. For example, simple data rearrangement may
+yield sufficient quality for most purposes dramatically reducing the data
+volumes used in visualizations by a factor of more than 100x. By selecting
+every fourth element in a mesh and then only selecting the 3 bytes required to
+represent the sign, exponent, and the most significant bits of the mantissa is
+a radical data reduction. This small data set version could be written to fast
+storage while the other possible slicings can be written to slower storage
+tiers that presumably have more capacity. By being able to slice data for
+different placement and offering the signficiant data reductions with little
+loss in analysis quality, time to insight can be improved. Should the full
+quality data set ever be required, all of the pieces can be reassembled from
+the various storage tiers and processed as a single unit. Alternatively, an
+auditor offers a lossy approach.
+
+Auditors are an idea that recognizes that while simulations have refined over
+the years, much faster, simpler, older models can still be used over short
+timeframes to get a very close approximation to the fine grained, fully
+featured simulation. Using these older models as an auditor for the full
+fidelity simulation, we can track, only over relatively short time and space
+constraints, with radically less computational load and data sizes. By using an
+auditor running along side the full fidelity simulation, the error magnitude
+can be managed resetting the auditor when the drift is unacceptably large,
+approximate data quality can be maintained. Using statistical techniques,
+auditor output can be used to regenerate statistically similiar full fidelity
+simulation values within a known error bounds forced by the state comparison to
+determine the auditor drift. Using this approach major events or periodic
+timesteps can be output using full fidelity while many intermediate results can
+be output using the auditor state generating high quality lossy representations
+of what the intermediate simulation state would be like. There are other lossy
+approaches available. For example, ISABELLA~\cite{isabella} offers a sorted
+data set with B-Spline curve fitting to reduce the data set size.
+Delta~\cite{delta} looks at simple diffs to reduce the data set with low
+space-time overheads with no loss. Wavelet compression~\cite{wavelet} low
+space-time overheads with potentially radially high data compression with
+predictable error rates. Each of these approaches can be useful in different
+circumstances.
+
+Third, SIRIUS focuses on Quality of Service (QoS) to help guide users to
+choosing an acceptable time/quality tradeoff for a given operation. For
+example, in the data reoganization example above, using the every fourth point,
+3 bytes of 8 bytes values may be able to be loaded and analyzed in 1 minutes.
+Reading the full fidelity may take 2 hours. For a quick peak to see if the data
+might be ``interesting'', the 1 minute overhead is likely enough. Should a
+general feature seem to be present, a data set could be noted for later fully
+detailed review. The 2 hour overhead could be scheduled rather than delaying
+the interactive scientist.
+
+\subsubsection{Discussion}
+SIRIUS seeks to take advantage of the whole storage hierarchy to get maximum
+I/O bandwidth. By incorporating technqiues to slice, compress, or lossy
+compress the data, more efficient storage tier use can be achieved. Since only
+the small, most important part of a data set is stored in the fast, small,
+expensive tier, many more outputs or different applications can use the tier
+without strong considerations about exhausting the capacity. By including QoS
+measures as part of the system enabling users to interact with requests to
+determine the quality/time tradeoff, end user productivity can be enhanced with
+little to no loss of scientific validity. For final report and paper
+submissions, the time can be spent for full fidelity data reads and analysis to
+validate the results generated from the lower fidelity data versions. These
+kinds of techniques will be increasingly important to maximize both platform
+productivity as well as scientist productivity.
+
+\section{Conclusions}\label{sec:conclusion}
+
+The growth in data analytics and the corresponding embracing of object-based and key-value technologies is dramatically shifting the storage landscape. With pressures to support both traditional HPC simulation workloads and large scale data analytics on the same platforms, the pressures on HPC platforms, software infrastructure, and applications continues to increase. Through adapting programming models, such as using asynchronous many task with a system like Kelpie to support data management, the changed storage features can be fully exposed and embraced by the applications.
+
+For existing applications that either cannot or will not shift to an AMT model, systems like the FFSIO and SIRIUS offer alternatives that with only minimal modification, the applications can achieve many benefits.
+
+Based on our existing efforts and thoughts, the move to the distributed objects
+and key-value stores will add complexity and incurr a loss from parallel file
+system functionality. However, these costs are proving acceptable given the
+performance and functionality gains being achieved. As the market and platforms
+continue to shift, we see HPC applications being better able to take advantage
+of data analytics infrastructure while the data analytics software will need to
+make some adjustments to the different platform requirements for HPC
+simulation-oriented machines. Eventually, both should be able to co-exist with
+minimal performance loss. Ideally, both will benefit from the combination of
+the best of both worlds.
 
 \section*{Acknowledgements}
 Sandia National Laboratories is a multi-program laboratory managed and operated
