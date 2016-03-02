@@ -94,15 +94,18 @@ HDFS developed to support the Hadoop implementation of the MapReduce system. It
 offers a distributed, replicated file store optimized to support the MapReduce
 processing configuration. Ceph~\cite{weil:2006:ceph} also addresses this
 distributed computing infrastructure, but with a different emphasis. It seeks
-to offer scale out performance for objects across a storage infrastructure
-with unreliable storage.  However, Ceph has historically had some fundamental
-assumptions that incur overheads that are unacceptably large for a high end HPC
-center~\cite{wang:2013:ceph}.  With the rise of cloud systems using
-object-based storage, such as Amazon's S3, the interaction style offered by
-Ceph has been adopted for similar workloads. Ceph's unreliable storage handling
-works for both new storage additions as well as failures and recoveries without
-interruption. Ceph offers a complete file system including metadata management
-support as well as an object system for users.
+to offer scale out performance for objects across a storage infrastructure with
+unreliable storage.  However, Ceph has historically had some fundamental
+assumptions that incur overheads that are unacceptably large for the high end
+HPC center~\cite{wang:2013:ceph}: Traditional HPC file systems rely on large
+RAID arrays for reliability while Ceph's design favors small storage targets
+with no hardware-supported redundancy but instead imbued with Ceph's
+peer-to-peer technology to allow self-healing.  With the rise of cloud systems
+using object-based storage, such as Amazon's S3, the interaction style offered
+by Ceph has been adopted for similar workloads. Ceph's unreliable storage
+handling works for both new storage additions as well as failures and
+recoveries without interruption. Ceph offers a complete file system including
+metadata management support as well as an object system for users.
 GlusterFS~\cite{boyer:2012:glusterfs} focuses on providing a network attached
 storage interface to storage distributed throughout a cluster.  Rather than
 providing metadata services, GlusterFS relies on the underlying storage file
@@ -180,11 +183,11 @@ These object storage systems assume that some sort of structure is imposed on
 top to track what objects correspond to which user items.
 
 While object storage may have been used behind the scenes for years, raw
-object storage exposed to the end-user programmer did not into vogue until the
-big data era arrived. System developers for big data processing realized that
-the overhead imposed by the object management forced serialized or at least
-coordinated access. By shifting the mapping load to the end-user programmer
-level and using the object storage layer directly, greater perceived
+object storage exposed to the end-user programmer did not come into vogue until
+the big data era arrived. System developers for big data processing realized
+that the overhead imposed by the object management forced serialized or at
+least coordinated access. By shifting the mapping load to the end-user
+programmer level and using the object storage layer directly, greater perceived
 performance can be achieved. In many cases, by stripping down the requirements
 to the absolute minimum required semantics for a particular application,
 actual performance gains are achieved. The explosion of specialized storage
