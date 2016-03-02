@@ -225,10 +225,38 @@ Overall, the system design (see Figure~\ref{fig:arch-mapping}) consists of a
 friendly end-user API that manipulates either the I/O Dispatcher layer or the
 DAOS (Distributed Asynchronous Object Storage) layer.
 
-The first phase design focuses on a few themes. First, transactions are
-integral to offering decoupled performance. Second, storing many individual
-objects rather than logically organized fewer objects is prefered. And third,
-hide additional API complexity behind a friendly end-user API.
+The first phase design focuses on a few themes. First, a container and object
+structure is assume. Second, transactions are integral to offering decoupled
+performance. And third, hide additional API complexity behind a friendly
+end-user API.
+
+\subsubsection{Containers and Objects}
+FFSIO presents a object-like interface that is mostly backwards compatible with
+the standard POSIX files that an end-user API like HDF5 would create. It has
+containers that represent files and objects of different types to represent
+the different kinds of data stored for a ``file''. To keep a pure view on the
+system, there is no master container or any other such construct. Instead, it 
+is assumed that a user or system will specify a standard well-known container
+that contains a list of available other containers. Some additional complexity
+is introduced through this approach, but the decoupled requirement to update a
+central metadata service for any file creation or access operation is
+eliminated. Instead, either the user or policy would have to keep track of
+available containers. The reasoning behind this structure is a bit complicated,
+but quite reasonable.
+
+Potentially extreme overheads for writing logically contiguously formatted data
+is well documented. For example, ParColl~\cite{yu:2006:parcoll} showed as much
+as 90\% overhead on as few as 512 processes. For the Six Degrees of Scientific
+Data~\cite{lofstead:2011:six-degrees} work, the authors were unable to perform
+some performance comparisons because a single data output could not be written
+in the maximum normal job time. These sorts of impacts are prompting rethinking
+the logically contiguous format favored by popular APIs like HDF5 and PnetCDF.
+The perceived advantages when these formats were selected have not proven to
+scale to very large, 3-D domain decompositions in particular. DAOS, offers the
+object storage infrastructure while the HDF5 API at the end-user level is
+maintained almost exactly. The only end-user API changes are related to
+incorporating transactions. This shift almost exactly maintains backwards
+compatibility while taking advantage of more scalable infrastructures.
 
 \subsubsection{Transactions}
 The system jitter and other causes for processes to fade out of sync affect
@@ -281,21 +309,6 @@ three approaches is likely. The passive transactions will be used for backwards
 compatibility. The end-user, single process managed transactions will work well
 for storage system interactions. The D2T approach could be used in isolation or
 to support the end-user, single process managed transactions.
-
-\subsubsection{Objects}
-Potentially extreme overheads for writing logically contiguously formatted data
-is well documented. For example, ParColl~\cite{yu:2006:parcoll} showed as much
-as 90\% overhead on as few as 512 processes. For the Six Degrees of Scientific
-Data~\cite{lofstead:2011:six-degrees} work, the authors were unable to perform
-some performance comparisons because a single data output could not be written
-in the maximum normal job time. These sorts of impacts are prompting rethinking
-the logically contiguous format favored by popular APIs like HDF5 and PnetCDF.
-The perceived advantages when these formats were selected have not proven to
-scale to very large, 3-D domain decompositions in particular. DAOS, offers the
-object storage infrastructure while the HDF5 API at the end-user level is
-maintained almost exactly. The only end-user API changes are related to
-incorporating transactions. This shift almost exactly maintains backwards
-compatibility while taking advantage of more scalable infrastructures.
 
 \subsubsection{API Complexity}
 One of the complexities of the FFSIO stack is addressing various scale
@@ -509,11 +522,247 @@ validate the results generated from the lower fidelity data versions. These
 kinds of techniques will be increasingly important to maximize both platform
 productivity as well as scientist productivity.
 
+\subsection{Radical Departures}
+The Sirocco Storage Sytem from Sandia takes inspiration from peer-to-peer
+systems to rethink how a storage system should work for HPC. Instead of relying
+on existing notions of striping files across storage devices, it is fully
+object based and works under the idea of primarily caching under data
+resiliency requirements.
+
+Existing parallel file systems, such as Lustre, GPFS, Panasas, and
+PVFS/OrangeFS, all offer a way to store objects larger than a single storage
+device by striping data across devices simultaneously enhancing performance.
+Each of these systems have optimized in a different way. Lustre exposes all of
+the tuning parameters allowing users to tweak settings to optimize performance.
+The downside is that these parameters must be managed to achieve good
+performance. GPFS hides most of these parameters and attempts to manage
+performance optimizations with moderate success. Panasas dynamically increases
+the number of storage targets used for a file as the simultaneous parallel
+writer count increases. PVFS/OrangeFS has optimize metadata operations reducing
+the load on the metadata server.
+
+Sirocco seeks to completely rethink this model to move away from the rigid
+striping model with a separate metadata service into a storage fabric with an
+inherent assumption that resources may be transient. This fundamental
+rethinking is being done with a nod to backwards compatibility by offering a
+POSIX interface that can access a particular view of the storage system. The
+native interface is object based with containers collecting objects each of
+which have multiple data forks that can be accessed through an address space.
+These four abstract levels offers flexibility to address HPC, EOD, and large
+scale data analytics needs.
+
+The roots of Sirocco are in the Lightweight File Systems (LWFS) project at
+Sandia from several years ago. LWFS sought to strip down a file system to the
+bare, required components and allow users to add additional capabilities paying
+the overhead for only those features required. For example, the LWFS core
+consists of an object store with authentication and authorization services
+only. Other features, such as naming and consistency control, are left to
+separate services. Sirocco seeks to provide the storage layer that an
+LWFS-style system would require. Keeping this in mind will help explain some of
+the decisions made. For example, a non-Sirocco client accessing or manipulating
+data is equivalent to going directly to disk and reading or modifying bytes
+rather than going through the file system interface. Protections against such
+access are not included since it is intended to act like a device like disk
+only accessed through a file system interface of some sort.
+
+One way to think about how Sirocco works is as a reverse Bittorrent system. In
+a typical Bittorrent system, a seed offers a file for others to replicate as
+they request it. A tracker offers a directory to find where seeds are located
+so that new clients can discover what is currently available. Over time, a
+requested seed will be replicated to the local client based on pulling pieces
+from a variety of sources currently offering a copy of the file. Which seeds
+are available over time change dynamically making it likely that a new copy of
+a file came from multiple sources, some of which were only available for part
+of the transfer time.
+
+Sirocco takes a reverse approach for writing because a client wants to store a
+file into the server collection with some resilience properties. As it is
+pushed into the space, it will be copied and replicated according to the device
+characteristics and availability and resilience requirements asserted as the
+data is pushed.
+
+For reading operation, Sirocco will go find the current data version and return
+it to the requesting user. For performance reasons, a user could force a copy
+to migrate to a particular location. The old version may be flushed on a space
+required and resilience considering basis. The collection of Sirocco servers is
+referred to as a swarm further reinforcing the Bittorrent analog.
+
+To understand how Sirocco works at a detailed level, several concepts and how
+they work in Sirocco are required. Each of these are explored below.
+
+\subsubsection{Logical Structure}
+Logically, Sirocco uses a containers, objects, forks, and address spaces tuple to identify a particular byte. Each of these concepts plays a different role offering specific features.
+
+All of these concepts rely on IDs or ranges. Each of these are represented by a 64-bit number. This specifies the size of all of these spaces. When considering these concepts, a rich format like HDF5 helps understand the purpose of each. Sirocco goes beyond HDF5's capabilities to offer new features common in other kinds of storage systems.
+
+\noindent\textbf{Containers}\\
+The container is equivalent to a file in a traditional file system. The idea of
+using a container rather than a file is that it is really a capability envelope
+for an object collection rather than a single byte stream. Each container
+contains zero or more objects.
+
+\noindent\textbf{Objects}\\
+Each object can be though of as a variable in an HDF5 file. For example, an
+array or scalar value may each be stored in a single object. The object 0 for
+every container is reserved.
+
+\noindent\textbf{Forks and Address Spaces}\\
+Each object can have multiple versions or views referred to as a ``fork''.
+These forks are similar to the old Macintosh OS resource and data forks stored
+for each file. In this case, the number of forks is limited by a 64-bit number.
+The fork 0 for every object is reserved for information for the security
+system. This highlights that forks can serve multiple purposes beyond simply
+being a resource and a data fork for a file. In this case, there is a security
+information fork. Another use would be to specify a compression level for a
+version of data. If a particular compression type or level is available, it is
+stored in a well known fork ID. This can also be used for versioning to offer a
+rudimentary source control system or represent the old VAX VMS file versions
+concept. Many other potential uses are also possible and not artificially
+limited by the system.
+
+To access data within a fork, a 64-bit address space is referenced. Each
+selected address portion is called a \em{range}. When writing, data is provided
+for the range and pushed into Sirocco. The address space is treated as a key
+value store using the address ranges as the key and the data as the value. Each
+value is versioned with the versions being accessible. HOW?
+
+Each address space within a fork is limited to 4 GiB currently. For the short
+term, users are required to write multiple ranges as part of an extent to write
+a larger space.
+
+\subsubsection{Storage Devices}
+Storage devices are represented by a Sirocco interface. Each device has its own
+Sirocco interface and has particular characteristics that determine how it is
+used. For example, a RAM backing store may be used for a compute-node Sirocco
+server or a disk may back a different Sirocco server. How and when these are
+used is driven from the resilience characteristics requested for an extent.
+Device collections that share the same characteristics can be thought of as
+comprising a single storage tier. Sirocco makes no such association as it
+treats all potential storage locations as peers and selects which to use based
+on the resilience characteristics requested.
+
+\noindent\textbf{Device Characteristics}\\
+Device characteristics affect two different system functions. First, they
+specify the performance that can be expected when accessing the device. Second,
+they specify a resilience metric that is used for data protection and
+availability. Both of these work together to guide data placement and
+migration.
+
+The four basic characteristics are latency, bandwidth, load, and volatility.
+The first two are exactly as expected for a storage system. Load is a dynamic
+measure of how busy a storage device is currently. Migrating data to a heavily
+loaded device is a poor performance choice if other options are available and
+Sirocco considers this to try to offer the best overall performance. Volatility
+is a measure of how safe data stored in this device is compared to other
+devices. RAM vs. node local SSD vs. centralized SSD vs. disk vs. tape all offer
+different volatility metrics. This metric in particular is used to implement
+the resilience features.
+
+When an extent is provided to the Sirocco API, two resilience characteristics
+are provided--short term and long term. The short term requirement describes
+how to store the data before the Sirocco API returns control to the user. For
+example, if a two-copy on persistent store short term requirement is specified,
+Sirocco will ensure that two storage devices meeting this requirement have
+successfully acknowledged storing the data before returning control to the
+user.
+
+The long term resilience requirement comes into play as the amount of space
+available is insufficient requiring data ejection or deletion. Any extent
+selected for eviction or deletion will be reconciled according to the long term
+resilience requirements. If the long term requirements specify resilience
+characteristics typical of a tape system and insufficient additional replicas
+to meet the resilience requirement exist, Sirocco will migrate the affected
+data towards or into the tape system to free space required for the current
+operation.
+
+\noindent\textbf{Finding Data}\\
+Given the assumed transient device existence, Sirocco works to keep data with
+required resilience characteristics as devices come and go. When a device is
+discovered to be missing, any replicas stored on that device must find
+alternative locations to preserve the required resilience. News of the missing
+device is propagated to all participating storage servers so they can react to
+the loss appropriately. When a new server comes online, a similar propagated
+message informs the swarm of the new potential target and the characteristics
+it offers.
+
+Should all replicas for a file go offline effectively simultaneously, it is
+possible for data to be stored securely, but not be accessible. Sirocco works
+to minimize this possibility, but it is impossible to guarantee that data will
+always be available unless all data is replicated on all storage devices--a
+clearly infeasible solution.
+
+\noindent\textbf{Authoritative Copy}\\
+Something that may come to mind with the broad discussion of having multiple
+data copies for resilience and transient storage devices is how to know what
+the ``official'' data version is. This is handled through the idea of an
+authoritative data copy. By default, Sirocco selects one copy as the
+authoritative copy. Should that copy be ``far'' from the client, the client can
+request that the authoritative copy migrate to a nearby server to offer better
+interactive performance.
+
+\noindent\textbf{Server to Server Communication}\\
+Since Sirocco has no central point of control, any data can be requested or
+written to any server in the swarm. If the data is not stored on that server,
+Sirocco starts to search by asking nearby servers if they have or know where
+the data is stored. As that message propagates out, the user will eventually be
+told the data cannot be found or have the data returned to them. For a basic
+request, the data may or may not migrate a copy to the server the client
+initiated the request through. By requesting the authoritative copy migrate,
+the user can force the primary copy to move to the server the request was
+initiated through.
+
+\noindent\textbf{Client APIs}\\
+While the native interaction for the 4-tuple (container ID, object ID, fork ID,
+address space) is an object interface, it does not address needs of existing
+applications or file system APIs. While this is the preferred interface since
+it offers the richest interaction and control mechanisms, backwards
+compatibility is required. A full POSIX interface has been implemented, but it
+is limited. For example, a separate metadata service will be required for
+naming that maps to containers. Also with this mapping, how to handle objects,
+forks, addresses, and versions is required. By default, it serializes the
+objects and forks, but only the most recent versions.
+
+\subsubsection{Discussion}
+The four simple 64-bit identifiers offers tremendous capacity and storage
+system flexibility that should be able to address high end storage needs for
+years to come. With these fixed numeric spaces, but no incorporated metadata
+system, some operations are no longer apparent. For example, since all IDs exit
+in theory and storage resources may come and go, the idea of ``creating'' or
+``deleting'' something is alien. When a particular tuple is specified, as long
+as the requester has authority to access that space, they will be given access.
+When reading, if the requested space does not exist in the current space, a
+``not found'' is returned. To delete an item, it must be cleared from the
+system by doing a write setting the record length to zero.
+
+Since performing since address space writes at a time may be highly
+inefficient, the concept of a record and an extent exist. A record is the
+version and length of a value that represents an address range within a fork.
+An extent is a collection of records to be operated on. Most Sirocco APIs use
+an extent rather than a record for data manipulation. Processing of extents is
+in an undefined order and all have the same version. The extent processing is
+done as a single transaction.
+
+Sirocco fundamentally rethinks how to offer a storage system for a high end
+computing environment. By rejecting the current zebra model for a peer-to-peer
+style model, resilience features can be incorporated more easily. While some of
+the limitations of this approach may complicate the file system interaction
+built on top of Sirocco, the flexibility and features make considerations worth
+the trouble.
+
 \section{Conclusions}\label{sec:conclusion}
 
-The growth in data analytics and the corresponding embracing of object-based and key-value technologies is dramatically shifting the storage landscape. With pressures to support both traditional HPC simulation workloads and large scale data analytics on the same platforms, the pressures on HPC platforms, software infrastructure, and applications continues to increase. Through adapting programming models, such as using asynchronous many task with a system like Kelpie to support data management, the changed storage features can be fully exposed and embraced by the applications.
+The growth in data analytics and the corresponding embracing of object-based
+and key-value technologies is dramatically shifting the storage landscape. With
+pressures to support both traditional HPC simulation workloads and large scale
+data analytics on the same platforms, the pressures on HPC platforms, software
+infrastructure, and applications continues to increase. Through adapting
+programming models, such as using asynchronous many task with a system like
+Kelpie to support data management, the changed storage features can be fully
+exposed and embraced by the applications.
 
-For existing applications that either cannot or will not shift to an AMT model, systems like the FFSIO and SIRIUS offer alternatives that with only minimal modification, the applications can achieve many benefits.
+For existing applications that either cannot or will not shift to an AMT model,
+systems like the FFSIO and SIRIUS offer alternatives that with only minimal
+modification, the applications can achieve many benefits.
 
 Based on our existing efforts and thoughts, the move to the distributed objects
 and key-value stores will add complexity and incurr a loss from parallel file
